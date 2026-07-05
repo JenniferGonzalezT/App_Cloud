@@ -3,9 +3,11 @@ package com.duoc.cloud.service;
 import java.math.BigDecimal;
 import java.util.List;
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.duoc.cloud.config.RabbitMQConfig;
 import com.duoc.cloud.dto.CursoResumenDTO;
 import com.duoc.cloud.dto.InscripcionRequestDTO;
 import com.duoc.cloud.dto.InscripcionResumenDTO;
@@ -23,15 +25,18 @@ public class InscripcionService {
     private final EstudianteRepository estudianteRepository;
     private final CursoService cursoService;
     private final S3Repository s3Repository;
+    private final RabbitTemplate rabbitTemplate;
 
     public InscripcionService(InscripcionRepository inscripcionRepository,
                               EstudianteRepository estudianteRepository,
                               CursoService cursoService,
-                              S3Repository s3Repository) {
+                              S3Repository s3Repository,
+                              RabbitTemplate rabbitTemplate) {
         this.inscripcionRepository = inscripcionRepository;
         this.estudianteRepository = estudianteRepository;
         this.cursoService = cursoService;
         this.s3Repository = s3Repository;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     @Transactional
@@ -154,5 +159,19 @@ public class InscripcionService {
         String fileName = "resumen_" + inscripcionId + ".txt";
 
         s3Repository.borrarArchivo(folderName, fileName);
+    }
+
+    // Enviar resumen a la cola MQ
+    public void enviarResumenAColaMQ(InscripcionResumenDTO resumen) {
+        System.out.println("====== PRODUCER: Iniciando envío a RabbitMQ ======");
+        
+        // Enviamos el objeto DTO directamente. Spring lo transformará a JSON gracias a nuestro Bean de configuración.
+        rabbitTemplate.convertAndSend(
+            RabbitMQConfig.EXCHANGE_NAME,
+            RabbitMQConfig.ROUTING_KEY,
+            resumen
+        );
+        
+        System.out.println("====== PRODUCER: Mensaje encolado con éxito para: " + resumen.getNombreEstudiante() + " ======");
     }
 }
