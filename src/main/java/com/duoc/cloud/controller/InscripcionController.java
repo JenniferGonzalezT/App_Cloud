@@ -20,14 +20,15 @@ public class InscripcionController {
         this.inscripcionService = inscripcionService;
     }
 
-    // POST /api/inscripciones - Crea la inscripción, genera el resumen y lo sube al bucket S3
+    // POST /api/inscripciones - Crea la inscripción, genera el resumen, lo sube al bucket S3 y lo envia a la cola
     @PostMapping
     public ResponseEntity<String> crearYSubirResumenAS3(@Valid @RequestBody InscripcionRequestDTO request) {
         InscripcionResumenDTO resumen = inscripcionService.inscribir(request);
         inscripcionService.guardarResumenEnS3(resumen);
+        inscripcionService.enviarResumenAColaMQ(resumen);
 
         return ResponseEntity.ok("Inscripción realizada con éxito. Resumen N° " 
-                + resumen.getInscripcionId() + " subido al bucket en su carpeta correspondiente.");
+                + resumen.getInscripcionId() + " subido al bucket en su carpeta correspondiente y enviado a la cola.");
     }
 
     // GET /api/inscripciones/{id} - Permite descargar el archivo físico desde S3
